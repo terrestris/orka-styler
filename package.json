@@ -1,0 +1,42 @@
+{
+  "name": "orka-styler",
+  "version": "0.0.1",
+  "description": "Convert Mapfile Styles to QGIS Styles",
+  "main": "./src/app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ./src/app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/terrestris/orka-styler.git"
+  },
+  "keywords": [
+    "rostock",
+    "orka",
+    "mapfile",
+    "qgis"
+  ],
+  "author": "terrestris GmbH & Co. KG <info@terrestris.de>",
+  "contributors": [
+    {
+      "name": "Michael Holthausen",
+      "email": "holthausen@terrestris.de",
+      "url": "https://github.com/mholthausen"
+    }
+  ],
+  "license": "Apache-2.0",
+  "bin": {
+    "rostock-style": "./src/app.js"
+  },
+  "bugs": {
+    "url": "https://github.com/terrestris/orka-styler/issues"
+  },
+  "homepage": "https://github.com/terrestris/orka-styler#readme",
+  "dependencies": {
+    "geostyler-cli": "^0.0.2",
+    "geostyler-qgis-parser": "^0.2.4",
+    "jszip": "^2.6.1"
+  },
+  "type": "module"
+}
