@@ -5,7 +5,8 @@
   "main": "./src/app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ./src/app.js"
+    "start": "node ./src/app.js",
+    "lint": "npx eslint -c .eslintrc.cjs --fix ./src/app.js"
   },
   "repository": {
     "type": "git",
@@ -27,16 +28,20 @@
   ],
   "license": "Apache-2.0",
   "bin": {
-    "rostock-style": "./src/app.js"
+    "orka-style": "./src/app.js"
   },
   "bugs": {
     "url": "https://github.com/terrestris/orka-styler/issues"
   },
   "homepage": "https://github.com/terrestris/orka-styler#readme",
   "dependencies": {
-    "geostyler-cli": "^0.0.2",
-    "geostyler-qgis-parser": "^0.2.4",
-    "jszip": "^2.6.1"
+    "geostyler-mapfile-parser": "0.0.3",
+    "geostyler-qgis-parser": "^0.2.4"
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "eslint": "^7.26.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-plugin-import": "^2.22.1"
+  }
 }
