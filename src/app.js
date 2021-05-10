@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-param-reassign */
 
 import { readFile, writeFile, existsSync } from 'fs';
 import { MapfileStyleParser } from 'geostyler-mapfile-parser';
@@ -13,7 +14,7 @@ function checkArgs() {
   if (path === undefined) {
     console.error('Please specify a valid path to the Mapfile');
     return false;
-  } else return true;
+  } return true;
 }
 
 function checkIfMapfileExists() {
@@ -21,18 +22,16 @@ function checkIfMapfileExists() {
   try {
     if (path && existsSync(path)) {
       return true;
-    } else {
-      console.error('Please specify a valid path to the Mapfile');
-      return false;
     }
+    console.error('Please specify a valid path to the Mapfile');
+    return false;
   } catch (err) {
     return false;
   }
 }
 
 function start() {
-  // TODO replace with parameter
-  readFile(process.argv[2], function (err, data) {
+  readFile(process.argv[2], (err, data) => {
     // Check for errors
     if (err) {
       console.error('Please specify a valid path to the Mapfile');
@@ -48,9 +47,10 @@ function start() {
               writeFile(
                 './files/out/geostyler-style.json',
                 JSON.stringify(geostylerStyle),
-                function (err) {
-                  if (err) return console.log(err);
-                }
+                (gsErr) => {
+                  if (gsErr) return console.log(gsErr);
+                  return true;
+                },
               );
 
               geostylerStyle.forEach((style) => {
@@ -62,10 +62,10 @@ function start() {
                     if (rule.symbolizers) {
                       rule.symbolizers.forEach((symbolizer) => {
                         if (
-                          symbolizer.kind &&
-                          symbolizer.kind === 'Icon' &&
-                          symbolizer.image &&
-                          symbolizer.image === 'ellipse'
+                          symbolizer.kind
+                          && symbolizer.kind === 'Icon'
+                          && symbolizer.image
+                          && symbolizer.image === 'ellipse'
                         ) {
                           symbolizer.kind = 'Mark';
                           symbolizer.wellKnownName = 'circle';
@@ -84,12 +84,13 @@ function start() {
                     writeFile(
                       `./files/out/${style.name}.qml`,
                       qgisStyle,
-                      function (err) {
-                        if (err) return console.error(err);
+                      (qgisErr) => {
+                        if (qgisErr) return console.error(qgisErr);
                         console.info(
-                          `QGIS Style is written successfully to the file ${style.name}`
+                          `QGIS Style is written successfully to the file ${style.name}`,
                         );
-                      }
+                        return true;
+                      },
                     );
                   })
                   .catch((error) => {
@@ -100,11 +101,11 @@ function start() {
             }
           })
           .catch((error) => {
-            console.error(`There was an error parsing the mapfile:`);
+            console.error('There was an error parsing the mapfile:');
             throw error;
           });
-      } catch (err) {
-        console.error(err);
+      } catch (parseErr) {
+        console.error(parseErr);
       }
     }
 
