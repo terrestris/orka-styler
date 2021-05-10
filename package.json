@@ -4,7 +4,7 @@
   "description": "Convert Mapfile Styles to QGIS Styles",
   "main": "./src/app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run lint",
     "start": "node ./src/app.js",
     "lint": "npx eslint -c .eslintrc.cjs --fix ./src/app.js"
   },
