@@ -70,6 +70,8 @@ function start() {
                           symbolizer.kind = 'Mark';
                           symbolizer.wellKnownName = 'circle';
                           symbolizer.radius = symbolizer.size / 2;
+                          symbolizer.strokeOpacity = 0;
+                          symbolizer.opacity = 1;
 
                           delete symbolizer.size;
                           delete symbolizer.image;
