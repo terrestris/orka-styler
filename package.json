@@ -26,7 +26,7 @@
       "url": "https://github.com/mholthausen"
     }
   ],
-  "license": "Apache-2.0",
+  "license": "GPL-2.0-only",
   "bin": {
     "orka-style": "./src/app.js"
   },
@@ -36,7 +36,8 @@
   "homepage": "https://github.com/terrestris/orka-styler#readme",
   "dependencies": {
     "geostyler-mapfile-parser": "0.0.3",
-    "geostyler-qgis-parser": "^0.2.4"
+    "geostyler-qgis-parser": "^0.2.4",
+    "xml2js": "^0.4.23"
   },
   "type": "module",
   "devDependencies": {
