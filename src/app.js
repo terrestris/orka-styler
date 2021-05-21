@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+/* eslint-disable import/extensions */
+/* eslint-disable new-cap */
 /* eslint-disable no-param-reassign */
 
 import { readFile, writeFile, existsSync } from 'fs';
 import { MapfileStyleParser } from 'geostyler-mapfile-parser';
 import { QGISStyleParser } from 'geostyler-qgis-parser';
 import xml2js from 'xml2js';
-// eslint-disable-next-line import/extensions
 import symbolProps from './symbol.js';
 
 const parser = new MapfileStyleParser();
@@ -33,6 +34,34 @@ function checkIfMapfileExists() {
   }
 }
 
+function findNextLowerMaxScaleDenom(scales, filter, scaledenom) {
+  let scaleValues = [];
+  let foundValue = '0';
+
+  scales.forEach((scale) => {
+    if (scale.filter) {
+      const buff1 = new Buffer.from(scale.filter);
+      const buff2 = new Buffer.from(filter);
+
+      if (buff1.toString('base64') === buff2.toString('base64')) {
+        scaleValues.push(parseInt(scale.scalemaxdenom, 10));
+      }
+    }
+  });
+  scaleValues.sort((a, b) => a - b);
+  scaleValues.reverse();
+  scaleValues = [...new Set(scaleValues)];
+
+  scaleValues.forEach((scaleValue, i) => {
+    if (scaleValue.toString() === scaledenom.toString()) {
+      if (scaleValues[i + 1]) {
+        foundValue = scaleValues[i + 1].toString();
+      }
+    }
+  });
+  return foundValue;
+}
+
 function start() {
   readFile(process.argv[2], (err, data) => {
     // Check for errors
@@ -51,7 +80,7 @@ function start() {
                 './files/out/geostyler-style.json',
                 JSON.stringify(geostylerStyle),
                 (gsErr) => {
-                  if (gsErr) return console.log(gsErr);
+                  if (gsErr) return console.error(gsErr);
                   return true;
                 },
               );
@@ -62,6 +91,14 @@ function start() {
                 // replace "ellipse" symbols into "Mark"
                 if (style && style.rules && Array.isArray(style.rules)) {
                   style.rules.forEach((rule) => {
+                    // fill up special roads_name rule
+                    if (rule.filter) {
+                      rule.filter.forEach((filter, i) => {
+                        if (filter === null) {
+                          rule.filter[i] = ['!=', 'ref', ''];
+                        }
+                      });
+                    }
                     if (rule.symbolizers) {
                       rule.symbolizers.forEach((symbolizer) => {
                         if (
@@ -88,6 +125,7 @@ function start() {
                   .writeStyle(style)
                   .then((qgisStyle) => {
                     // POSTPROCESSING qgis-parser
+                    let pprcssng = true; // some settings only for labels with background
                     const scales = [];
                     const symbols = [];
 
@@ -95,91 +133,145 @@ function start() {
                     if (style.name.includes('label') && style.name !== 'label_railway_stations') {
                       const qmlParser = new xml2js.Parser();
                       const qmlBuilder = new xml2js.Builder();
-
                       qmlParser.parseString(qgisStyle, (logErr, result) => {
                         if (logErr) {
                           return console.error('Error in postprocessing stage.');
                         }
 
-                        const symbolRules = result.qgis['renderer-v2'][0].rules[0].rule;
-                        if (symbolRules) {
-                          symbolRules.forEach((rule) => {
-                            scales.push({
-                              scalemaxdenom: rule.$.scalemaxdenom !== undefined
-                                ? rule.$.scalemaxdenom
-                                : null,
-                              scalemindenom: rule.$.scalemindenom !== undefined
-                                ? rule.$.scalemindenom
-                                : null,
+                        if (result.qgis['renderer-v2'][0].$.type !== 'nullSymbol') {
+                          const symbolRules = result.qgis['renderer-v2'][0].rules[0].rule;
+                          if (symbolRules) {
+                            symbolRules.forEach((rule) => {
+                              scales.push({
+                                scalemaxdenom: rule.$.scalemaxdenom !== undefined
+                                  ? rule.$.scalemaxdenom
+                                  : null,
+                                scalemindenom: rule.$.scalemindenom !== undefined
+                                  ? rule.$.scalemindenom
+                                  : null,
+                                filter: rule.$.filter !== undefined
+                                  ? rule.$.filter
+                                  : null,
+                              });
                             });
+                            // set scalemindenom if not already set
+                            scales.forEach((scale) => {
+                              scale.scalemindenom = parseInt(scale.scalemindenom, 10) >= 0
+                                ? scale.scalemindenom
+                                : (
+                                  findNextLowerMaxScaleDenom(
+                                    scales, scale.filter, scale.scalemaxdenom,
+                                  ));
+                            });
+                          }
+                          const symbolsCollection = result.qgis['renderer-v2'][0].symbols[0].symbol;
+                          symbolsCollection.forEach((symbol) => {
+                            const symbolData = {};
+                            symbol.layer[0].prop.forEach((prop) => {
+                              // name
+                              if (prop.$.k === 'name') {
+                                symbolData.name = prop.$.v;
+                              }
+                            });
+                            symbols.push(symbolData);
                           });
+
+                          // set renderer to nullSymbol type and delete tags rules/symbols
+                          result.qgis['renderer-v2'][0].$.type = 'nullSymbol';
+                          delete result.qgis['renderer-v2'][0].rules;
+                          delete result.qgis['renderer-v2'][0].symbols;
+                        } else {
+                          pprcssng = false;
+                          if (scales.length === 0 && style.rules.length > 0) {
+                            style.rules.forEach((rule) => {
+                              if (rule.scaleDenominator) {
+                                for (let j = 0; j < rule.symbolizers.length; j += 1) {
+                                  scales.push(
+                                    {
+                                      scalemaxdenom: rule.scaleDenominator.max !== undefined
+                                        ? rule.scaleDenominator.max
+                                        : null,
+                                      scalemindenom: rule.scaleDenominator.min !== undefined
+                                        ? rule.scaleDenominator.min
+                                        : null,
+                                      filter: rule.filter !== undefined
+                                        ? rule.filter
+                                        : null,
+                                    },
+                                  );
+                                }
+                              }
+                            });
+                            // set scalemindenom if not already set
+                            scales.forEach((scale) => {
+                              scale.scalemindenom = parseInt(scale.scalemindenom, 10) >= 0
+                                ? scale.scalemindenom
+                                : (
+                                  findNextLowerMaxScaleDenom(
+                                    scales, scale.filter, scale.scalemaxdenom,
+                                  ));
+                            });
+                          }
                         }
-
-                        const symbolsCollection = result.qgis['renderer-v2'][0].symbols[0].symbol;
-                        symbolsCollection.forEach((symbol) => {
-                          const symbolData = {};
-                          symbol.layer[0].prop.forEach((prop) => {
-                            // name
-                            if (prop.$.k === 'name') {
-                              symbolData.name = prop.$.v;
-                            }
-                          });
-                          symbols.push(symbolData);
-                        });
-
-                        // set renderer to nullSymbol type and delete tags rules/symbols
-                        result.qgis['renderer-v2'][0].$.type = 'nullSymbol';
-                        delete result.qgis['renderer-v2'][0].rules;
-                        delete result.qgis['renderer-v2'][0].symbols;
-
                         // update labeling rules and structure
+
                         result.qgis.labeling[0].rules[0].rule.forEach((rule, i) => {
                           // scale
-                          if (scales[i].scalemaxdenom) {
+                          if (scales.length && scales[i].scalemaxdenom) {
                             rule.$.scalemaxdenom = scales[i].scalemaxdenom;
                           }
-                          if (scales[i].scalemindenom) {
+                          if (scales.length && scales[i].scalemindenom) {
                             rule.$.scalemindenom = scales[i].scalemindenom;
                           }
+                          // settings - text-style
+                          // fontWeight
+                          rule.settings[0]['text-style'][0].$.fontWeight = 75;
 
                           // settings
                           // settings - text-style - background
-                          const bgData = [
-                            {
-                              $: {
-                                shapeOffsetX: '0',
-                                shapeFillColor: '255,255,255,255',
-                                shapeRadiiY: '0',
-                                shapeSizeY: '0',
-                                shapeOffsetUnit: 'Point',
-                                shapeRotationType: '0',
-                                shapeOffsetMapUnitScale: '3x:0,0,0,0,0,0',
-                                shapeSizeX: '0',
-                                shapeRadiiMapUnitScale: '3x:0,0,0,0,0,0',
-                                shapeRadiiUnit: 'Point',
-                                shapeSizeMapUnitScale: '3x:0,0,0,0,0,0',
-                                shapeOpacity: '1',
-                                shapeBorderWidth: '0',
-                                shapeOffsetY: '0',
-                                shapeRadiiX: '0',
-                                shapeType: '4',
-                                shapeBorderWidthMapUnitScale: '3x:0,0,0,0,0,0',
-                                shapeSVGFile: symbols[i].name,
-                                shapeDraw: '1',
-                                shapeBorderWidthUnit: 'Point',
-                                shapeSizeType: '0',
-                                shapeSizeUnit: 'Point',
-                                shapeJoinStyle: '64',
-                                shapeBlendMode: '0',
-                                shapeRotation: '0',
-                                shapeBorderColor: '128,128,128,255',
+                          if (pprcssng) {
+                            const bgData = [
+                              {
+                                $: {
+                                  shapeOffsetX: '0',
+                                  shapeFillColor: '255,255,255,255',
+                                  shapeRadiiY: '0',
+                                  shapeSizeY: '0',
+                                  shapeOffsetUnit: 'Point',
+                                  shapeRotationType: '0',
+                                  shapeOffsetMapUnitScale: '3x:0,0,0,0,0,0',
+                                  shapeSizeX: '5',
+                                  shapeRadiiMapUnitScale: '3x:0,0,0,0,0,0',
+                                  shapeRadiiUnit: 'Point',
+                                  shapeSizeMapUnitScale: '3x:0,0,0,0,0,0',
+                                  shapeOpacity: '1',
+                                  shapeBorderWidth: '0',
+                                  shapeOffsetY: '0',
+                                  shapeRadiiX: '0',
+                                  shapeType: '4',
+                                  shapeBorderWidthMapUnitScale: '3x:0,0,0,0,0,0',
+                                  shapeSVGFile: symbols[i].name,
+                                  shapeDraw: '1',
+                                  shapeBorderWidthUnit: 'Point',
+                                  shapeSizeType: '0',
+                                  shapeSizeUnit: 'Point',
+                                  shapeJoinStyle: '64',
+                                  shapeBlendMode: '0',
+                                  shapeRotation: '0',
+                                  shapeBorderColor: '128,128,128,255',
+                                },
                               },
-                            },
-                          ];
-                          rule.settings[0]['text-style'][0].background = bgData;
+                            ];
+                            rule.settings[0]['text-style'][0].background = bgData;
 
-                          // settings - text-style - symbol
-                          rule.settings[0]['text-style'][0].symbol = symbolProps;
+                            // settings - text-style - symbol
+                            rule.settings[0]['text-style'][0].symbol = symbolProps;
+                          }
+
+                          if (rule.settings[0]['text-buffer'] && rule.settings[0]['text-buffer']) {
+                            rule.settings[0]['text-style'][0]['text-buffer'] = rule.settings[0]['text-buffer'];
+                            delete rule.settings[0]['text-buffer'];
+                          }
 
                           // settings placement
                           const placementData = [
@@ -211,7 +303,7 @@ function start() {
                                 overrunDistanceUnit: 'MM',
                                 centroidWhole: '0',
                                 offsetType: '0',
-                                placement: '2',
+                                placement: pprcssng === true ? '4' : '2', // 2 parallel, 4 horizontal
                                 priority: '0',
                                 geometryGenerator: '',
                                 polygonPlacementFlags: '2',
@@ -267,5 +359,5 @@ function start() {
 if (checkArgs() && checkIfMapfileExists()) {
   start();
 } else {
-  console.log('Nothing.');
+  console.info('Nothing.');
 }
