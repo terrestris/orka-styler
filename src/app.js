@@ -83,6 +83,29 @@ function findNextLowerMaxScaleDenom(scales, filter, scaledenom) {
 }
 
 /**
+ * Checks if the rule has a RegEx to parse and transforms it into qml RegExp rule
+ *
+ * @param {string} filter The filter to check for FN_strMatches
+ * @returns {string} The parsed or initial filter rules
+ */
+function checkForFnStrMatches(filter) {
+  if (typeof filter !== 'string') {
+    return filter;
+  }
+  const re = /FN_strMatches.*\*\$/;
+  const expression = filter.match(re);
+  if (expression && expression[0]) {
+    const data = expression[0].split(',');
+    const editedFilter = `${filter
+      .replace(re, `regexp_match(${data[1]}, '${data[2].replace('\\', '\\\\')}'`)
+      .replace(/\sLIKE true/g, '')}$')`;
+    return editedFilter;
+  }
+
+  return filter;
+}
+
+/**
  * The main function.
  */
 function start() {
@@ -178,7 +201,7 @@ function start() {
                                   ? rule.$.scalemindenom
                                   : null,
                                 filter: rule.$.filter !== undefined
-                                  ? rule.$.filter
+                                  ? checkForFnStrMatches(rule.$.filter)
                                   : null,
                               });
                             });
@@ -223,7 +246,7 @@ function start() {
                                         ? rule.scaleDenominator.min
                                         : null,
                                       filter: rule.filter !== undefined
-                                        ? rule.filter
+                                        ? checkForFnStrMatches(rule.filter)
                                         : null,
                                     },
                                   );
@@ -244,13 +267,18 @@ function start() {
                         // update labeling rules and structure
 
                         result.qgis.labeling[0].rules[0].rule.forEach((rule, i) => {
-                          // scale
+                          // rule - scale
                           if (scales.length && scales[i].scalemaxdenom) {
                             rule.$.scalemaxdenom = scales[i].scalemaxdenom;
                           }
                           if (scales.length && scales[i].scalemindenom) {
                             rule.$.scalemindenom = scales[i].scalemindenom;
                           }
+                          // rule - filter
+                          if (scales.length && scales[i].filter) {
+                            rule.$.filter = scales[i].filter;
+                          }
+
                           // settings - text-style
                           // fontWeight
                           rule.settings[0]['text-style'][0].$.fontWeight = 75;
