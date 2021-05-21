@@ -11,7 +11,13 @@ import symbolProps from './symbol.js';
 
 const parser = new MapfileStyleParser();
 const qgisParser = new QGISStyleParser();
+const debug = false;
 
+/**
+ * Tests wheather the args to start the processing are set or not
+ *
+ * @returns {boolean}
+ */
 function checkArgs() {
   const path = process.argv[2] || undefined;
 
@@ -21,6 +27,11 @@ function checkArgs() {
   } return true;
 }
 
+/**
+ * Checks if the given Mapfile is existent
+ * @returns {boolean}
+ *
+ */
 function checkIfMapfileExists() {
   const path = process.argv[2] || undefined;
   try {
@@ -34,6 +45,15 @@ function checkIfMapfileExists() {
   }
 }
 
+/**
+ * Determines the next available scale to enclose the specific rule by scales.
+ * Returns '0' if none is found.
+ *
+ * @param {array} scales All determined scales
+ * @param {string} filter The filter expression to group by
+ * @param {*} scaledenom The current scaledenom to find the next one available to
+ * @returns {string} The last sclaedenom or if none was found '0'
+ */
 function findNextLowerMaxScaleDenom(scales, filter, scaledenom) {
   let scaleValues = [];
   let foundValue = '0';
@@ -62,6 +82,9 @@ function findNextLowerMaxScaleDenom(scales, filter, scaledenom) {
   return foundValue;
 }
 
+/**
+ * The main function.
+ */
 function start() {
   readFile(process.argv[2], (err, data) => {
     // Check for errors
@@ -69,24 +92,28 @@ function start() {
       console.error('Please specify a valid path to the Mapfile');
     }
 
+    /**
+     * Create the styles with GeoStyler and postprocessing methods
+     */
     async function styleFiles() {
       try {
         parser
           .readMultiStyles(data.toString())
           .then((geostylerStyle) => {
             if (geostylerStyle) {
-              // TODO remove writing the gs style
-              writeFile(
-                './files/out/geostyler-style.json',
-                JSON.stringify(geostylerStyle),
-                (gsErr) => {
-                  if (gsErr) return console.error(gsErr);
-                  return true;
-                },
-              );
-
+              if (debug) {
+                writeFile(
+                  './files/out/geostyler-style.json',
+                  JSON.stringify(geostylerStyle),
+                  (gsErr) => {
+                    if (gsErr) return console.error(gsErr);
+                    return true;
+                  },
+                );
+              }
               geostylerStyle.forEach((style) => {
                 // POSTPROCESSING mapfile-parser
+                // =============================
 
                 // replace "ellipse" symbols into "Mark"
                 if (style && style.rules && Array.isArray(style.rules)) {
@@ -125,6 +152,7 @@ function start() {
                   .writeStyle(style)
                   .then((qgisStyle) => {
                     // POSTPROCESSING qgis-parser
+                    // ==========================
                     let pprcssng = true; // some settings only for labels with background
                     const scales = [];
                     const symbols = [];
@@ -316,6 +344,7 @@ function start() {
                           rule.settings[0].placement = placementData;
                         });
 
+                        // replace xml header to qml header
                         qgisStyle = qmlBuilder.buildObject(result)
                           .replace(
                             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',

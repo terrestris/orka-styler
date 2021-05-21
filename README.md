@@ -46,4 +46,12 @@ npm run start -- ./files/in/layers_druck.map
 
 The file to be parsed does not have to be in this folder. However, the path to the file must be specified relative to this project folder.
 
+With both the GeoStyler Style and the QML Style, various adjustments are made through post-processing. These include:
+
+- Replacing the "ellipse" symbol to a "mark" symbol,
+- Correcting a non-parsable common expression (ref),
+- Correcting scale ranges in the label layers,
+- Correcting the symbolization and labeling structure of the QML,
+- correcting the regular expression in label filters
+
 The parsed styles from the Mapfile are then placed as `*.qml` files in the folder `./files/out/`
