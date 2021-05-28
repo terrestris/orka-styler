@@ -331,6 +331,15 @@ function start() {
                             delete rule.settings[0]['text-buffer'];
                           }
 
+                          let placementId = 4;
+                          if (pprcssng) {
+                            placementId = 4;
+                          } else if (style.name === 'label_roads_name') {
+                            placementId = 3;
+                          } else {
+                            placementId = 2;
+                          }
+
                           // settings placement
                           const placementData = [
                             {
@@ -361,7 +370,7 @@ function start() {
                                 overrunDistanceUnit: 'MM',
                                 centroidWhole: '0',
                                 offsetType: '0',
-                                placement: pprcssng === true ? '4' : '2', // 2 parallel, 4 horizontal
+                                placement: placementId, // 2 parallel, 3, curved, 4 horizontal
                                 priority: '0',
                                 geometryGenerator: '',
                                 polygonPlacementFlags: '2',
