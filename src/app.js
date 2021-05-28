@@ -234,7 +234,7 @@ function start() {
                         } else {
                           pprcssng = false;
                           if (scales.length === 0 && style.rules.length > 0) {
-                            style.rules.forEach((rule) => {
+                            style.rules.forEach((rule, i) => {
                               if (rule.scaleDenominator) {
                                 for (let j = 0; j < rule.symbolizers.length; j += 1) {
                                   scales.push(
@@ -246,7 +246,9 @@ function start() {
                                         ? rule.scaleDenominator.min
                                         : null,
                                       filter: rule.filter !== undefined
-                                        ? checkForFnStrMatches(rule.filter)
+                                        ? checkForFnStrMatches(
+                                          result.qgis.labeling[0].rules[0].rule[i].$.filter,
+                                        )
                                         : null,
                                     },
                                   );
